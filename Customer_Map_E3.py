@@ -132,8 +132,8 @@ def update_figure(selected_gender, start_date, end_date):
 
 def update_table(selected_gender, start_date, end_date):    
     filtered_df = demographics.loc[(demographics['Gender'].isin(selected_gender)) &  
-                                  (demographics['JoinDate'] >= join_start_date) &
-                                  (demographics['JoinDate'] <= join_end_date), ]
+                                  (demographics['JoinDate'] >= start_date) &
+                                  (demographics['JoinDate'] <= end_date), ]
     return filtered_df.to_dict("rows")
 
 if __name__ == '__main__':
