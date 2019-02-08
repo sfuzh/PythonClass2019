@@ -36,6 +36,7 @@ for state in demographics['zip_state'].unique():
                            'value':state})
     
 app = dash.Dash()
+server = app.server
 
 #Add the CSS Stylesheet
 app.css.append_css({'external_url': 'https://codepen.io/chriddyp/pen/bWLwgP.css'})
