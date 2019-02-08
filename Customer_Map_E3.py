@@ -70,12 +70,11 @@ app.layout = html.Div([html.H1('Customer Map', style={'textAlign':'center'}),
                                                                     )
                                                             ),
                                                     html.H6('State'),
-                                                    html.P(html.Div([
-                                                           dcc.Checklist(id='state-picker',
+                                                    html.P(dcc.Dropdown(id='state-picker',
                                                                          options=state_options,
-                                                                         values= demographics['zip_state'].unique().tolist()
+                                                                         multi=True,
+                                                                         value= demographics['zip_state'].unique().tolist()
                                                                          )
-                                                           ])
                                                            )
                                                     ])
                                             ],
@@ -109,7 +108,7 @@ app.layout = html.Div([html.H1('Customer Map', style={'textAlign':'center'}),
      dash.dependencies.Input('joindate', 'end_date'),
      dash.dependencies.Input('birthdate', 'start_date'),
      dash.dependencies.Input('birthdate', 'end_date'),
-     dash.dependencies.Input('state-picker', 'values')])
+     dash.dependencies.Input('state-picker', 'value')])
 
 def update_figure(selected_gender, join_start_date, join_end_date, birthdate_start_date, birthdate_end_date, selected_state):    
      filtered_df = demographics.loc[(demographics['Gender'].isin(selected_gender)) &
@@ -144,8 +143,17 @@ def update_figure(selected_gender, join_start_date, join_end_date, birthdate_sta
                         sizemode = 'area'
                         )
                         )
-                    ]
-            }
+                    ],
+            'layout': dict(
+                      geo = dict(
+                                scope='usa',
+                                showland = True,
+                                landcolor = 'rgb(217, 217, 217)',
+                                subunitwidth=1,
+                                subunitcolor="rgb(255, 255, 255)"
+                                
+                                 )
+                      )}
 
 #We need another App Callback
     
@@ -156,7 +164,7 @@ def update_figure(selected_gender, join_start_date, join_end_date, birthdate_sta
      dash.dependencies.Input('joindate', 'end_date'),
      dash.dependencies.Input('birthdate', 'start_date'),
      dash.dependencies.Input('birthdate', 'end_date'),
-     dash.dependencies.Input('state-picker', 'values')])
+     dash.dependencies.Input('state-picker', 'value')])
 
 def update_table(selected_gender, join_start_date, join_end_date, birthdate_start_date, birthdate_end_date, selected_state):
     filtered_df = demographics.loc[(demographics['Gender'].isin(selected_gender)) &
