@@ -89,8 +89,8 @@ app.layout = html.Div([html.H1('Customer Map', style={'textAlign':'center'}),
 
 def update_figure(selected_gender, start_date, end_date):    
      filtered_df = demographics.loc[(demographics['Gender'].isin(selected_gender)) &  
-                                  (demographics['JoinDate'] >= join_start_date) &
-                                  (demographics['JoinDate'] <= join_end_date) ,]
+                                  (demographics['JoinDate'] >= start_date) &
+                                  (demographics['JoinDate'] <= end_date) ,]
      zip_size = demographics.groupby(["zip_city"]).size()
     
      zip_size = demographics.groupby(["zip_city", 'zip_longitude', 'zip_latitude']).size()
