@@ -9,6 +9,8 @@ import dash_core_components as dcc
 import dash_html_components as html
 from datetime import datetime as dt
 import dash_table
+import io
+import flask
 
 #os.chdir('C:/Users/patri/Dropbox/Python Advanced - Slides & Code/data')
 
@@ -70,12 +72,11 @@ app.layout = html.Div([html.H1('Customer Map', style={'textAlign':'center'}),
                                                                     )
                                                             ),
                                                     html.H6('State'),
-                                                    html.P(html.Div([
-                                                           dcc.Checklist(id='state-picker',
+                                                    html.P(dcc.Dropdown(id='state-picker',
                                                                          options=state_options,
-                                                                         values= demographics['zip_state'].unique().tolist()
+                                                                         multi=True,
+                                                                         value= demographics['zip_state'].unique().tolist()
                                                                          )
-                                                           ])
                                                            )
                                                     ])
                                             ],
@@ -93,7 +94,13 @@ app.layout = html.Div([html.H1('Customer Map', style={'textAlign':'center'}),
                                                                                 data = demographics.to_dict("rows")
                                                                 )])
                                                                     ]
-                                                            )
+                                                            ),
+                                                    dcc.Tab(label='Export Data',
+                                                            children=html.Div([
+                                                                    html.A(html.Button('Download', id='download-button')
+                                                                    , id='download-link')
+                                                                    ])
+                                                            ),
                                                     ]
                                             )
                                 ],
@@ -109,7 +116,7 @@ app.layout = html.Div([html.H1('Customer Map', style={'textAlign':'center'}),
      dash.dependencies.Input('joindate', 'end_date'),
      dash.dependencies.Input('birthdate', 'start_date'),
      dash.dependencies.Input('birthdate', 'end_date'),
-     dash.dependencies.Input('state-picker', 'values')])
+     dash.dependencies.Input('state-picker', 'value')])
 
 def update_figure(selected_gender, join_start_date, join_end_date, birthdate_start_date, birthdate_end_date, selected_state):    
      filtered_df = demographics.loc[(demographics['Gender'].isin(selected_gender)) &
@@ -144,8 +151,17 @@ def update_figure(selected_gender, join_start_date, join_end_date, birthdate_sta
                         sizemode = 'area'
                         )
                         )
-                    ]
-            }
+                    ],
+            'layout': dict(
+                      geo = dict(
+                                scope='usa',
+                                showland = True,
+                                landcolor = 'rgb(217, 217, 217)',
+                                subunitwidth=1,
+                                subunitcolor="rgb(255, 255, 255)"
+                                
+                                 )
+                      )}
 
 #We need another App Callback
     
@@ -156,7 +172,7 @@ def update_figure(selected_gender, join_start_date, join_end_date, birthdate_sta
      dash.dependencies.Input('joindate', 'end_date'),
      dash.dependencies.Input('birthdate', 'start_date'),
      dash.dependencies.Input('birthdate', 'end_date'),
-     dash.dependencies.Input('state-picker', 'values')])
+     dash.dependencies.Input('state-picker', 'value')])
 
 def update_table(selected_gender, join_start_date, join_end_date, birthdate_start_date, birthdate_end_date, selected_state):
     filtered_df = demographics.loc[(demographics['Gender'].isin(selected_gender)) &
@@ -167,6 +183,58 @@ def update_table(selected_gender, join_start_date, join_end_date, birthdate_star
                                   (demographics['Birthdate'] <= birthdate_end_date),]
         
     return filtered_df.to_dict("rows")
+
+@app.callback(
+    dash.dependencies.Output('download-link', 'href'),
+    [dash.dependencies.Input('gender-picker', 'values'),
+     dash.dependencies.Input('joindate', 'start_date'),
+     dash.dependencies.Input('joindate', 'end_date'),
+     dash.dependencies.Input('birthdate', 'start_date'),
+     dash.dependencies.Input('birthdate', 'end_date'),
+     dash.dependencies.Input('state-picker', 'value')])
+
+#This function creates the download link  
+def update_link(selected_gender, join_start_date, join_end_date, birthdate_start_date, birthdate_end_date, selected_state):
+    return '/dash/urlToDownload?value={}/{}/{}/{}/{}/{}'.format('-'.join(selected_gender),
+                                                                  dt.strptime(join_start_date,'%Y-%M-%d'),
+                                                                  dt.strptime(join_end_date,'%Y-%M-%d'),
+                                                                  dt.strptime(birthdate_start_date,'%Y-%M-%d'),
+                                                                  dt.strptime(birthdate_end_date,'%Y-%M-%d'),
+                                                                  '-'.join(selected_state))
+
+#This function performs the csv download, or more precisely it updates the csv that the user downloads.
+@app.server.route('/dash/urlToDownload')
+def download_csv():
+    value = flask.request.args.get('value')
+    value = value.split('/')
+    #Catch the filters from the downloadlink
+    selected_gender = value[0].split('-')
+    selected_state = value[5].split('-')
+    join_start_date = value[1]
+    join_end_date = value[2]
+    birthdate_start_date = value[3]
+    birthdate_end_date = value[4]
+    
+    filtered_df = demographics[demographics['Gender'].isin(selected_gender)]
+    filtered_df = filtered_df[filtered_df['zip_state'].isin(selected_state)]
+    filtered_df = filtered_df.loc[(demographics['JoinDate'] >= join_start_date) &
+                                  (demographics['JoinDate'] <= join_end_date) &
+                                  (demographics['Birthdate'] >= birthdate_start_date) &
+                                  (demographics['Birthdate'] <= birthdate_end_date),]
+    filtered_df["CustomerCount"] = filtered_df.groupby(["zip_city"], as_index=False)["Customer"].transform("count")
+    
+    #if you use Python 2, use io.BytesIO
+    str_io = io.StringIO()
+    filtered_df.to_csv(str_io)
+
+    mem = io.BytesIO()
+    mem.write(str_io.getvalue().encode('utf-8'))
+    mem.seek(0)
+    str_io.close()
+    return flask.send_file(mem,
+                       mimetype='text/csv',
+                       attachment_filename='downloadFile.csv',
+                       as_attachment=True)
 
 if __name__ == '__main__':
     app.run_server()
