@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Title: Customer Map on demographics Data solutions for Exercise 3 (Tabs)
+Author: Patrick Glettig
+Date: 17.11.2018
 """
+# import os
 import pandas as pd
 import dash
 import dash_core_components as dcc
@@ -9,6 +12,7 @@ import dash_html_components as html
 from datetime import datetime as dt
 import dash_table
 
+#os.chdir('C:/Users/patri/Dropbox/Python Advanced - Slides & Code/data')
 
 demographics = pd.read_csv('data/demographics.csv')
 demographics["Birthdate"] = pd.to_datetime(demographics["Birthdate"],
@@ -26,7 +30,6 @@ for gender in demographics['Gender'].unique():
     gender_options.append({'label':str(gender),
                            'value':gender})
 
-demographics["CustomerCount"] = demographics.groupby(["zip_city"], as_index=False)["Customer"].transform("count")
 
 app = dash.Dash()
 
@@ -81,40 +84,37 @@ app.layout = html.Div([html.H1('Customer Map', style={'textAlign':'center'}),
 @app.callback(
     dash.dependencies.Output('CustomerMap', 'figure'),
     [dash.dependencies.Input('gender-picker', 'values'),
-     dash.dependencies.Input('date-picker-range', 'start_date'),
-     dash.dependencies.Input('date-picker-range', 'end_date')])
+     dash.dependencies.Input('date-picker-range', 'join_start_date'),
+     dash.dependencies.Input('date-picker-range', 'join_end_date')])
 
 def update_figure(selected_gender, start_date, end_date):    
-    filtered_df = demographics[demographics['Gender'].isin(selected_gender)]
-    filtered_df = filtered_df.loc[(demographics['JoinDate'] >= start_date) &
-                                   (demographics['JoinDate'] <= end_date),]
-    filtered_df["CustomerCount"] = filtered_df.groupby(["zip_city"], as_index=False)["Customer"].transform("count")
-
-    customerCount = filtered_df['CustomerCount'].tolist()
-    zipcity = filtered_df['zip_city'].tolist()
-    hovertext = []
-    for i in range(len(customerCount)):
-        k = str(zipcity[i]) + ':' + str(customerCount[i])
-        hovertext.append(k)
-    #only the updated arguments are returned to the figure object, not a figure object itself.
-    return {'data':[dict(
+     filtered_df = demographics.loc[(demographics['Gender'].isin(selected_gender)) &  
+                                  (demographics['JoinDate'] >= join_start_date) &
+                                  (demographics['JoinDate'] <= join_end_date) ,]
+     zip_size = demographics.groupby(["zip_city"]).size()
+    
+     zip_size = demographics.groupby(["zip_city", 'zip_longitude', 'zip_latitude']).size()
+    
+     zipcity = zip_size.index.get_level_values("zip_city").tolist() 
+     customerCount = zip_size.values.tolist()
+     
+     hovertext = []
+     for i in range(len(customerCount)):
+          k = str(zipcity[i]) + ':' + str(customerCount[i])
+          hovertext.append(k)    #only the updated arguments are returned to the figure object, not a figure object itself.
+     
+     return {'data':[dict(
                         type = 'scattergeo',
                         locationmode = 'USA-states',
-                        lon = filtered_df['zip_longitude'],
-                        lat = filtered_df['zip_latitude'],
+                        lon = zip_size.index.get_level_values("zip_longitude").tolist(),
+                        lat = zip_size.index.get_level_values("zip_latitude").tolist(),
                         text = hovertext,
                         hoverinfo = 'text',
                         marker = dict(
-                        size = filtered_df['CustomerCount'],
+                        size = customerCount,
                         line = dict(width=0.5, color='rgb(40,40,40)'),
                         sizemode = 'area'
-                        ),
-                        transforms = [dict(
-                        type = 'aggregate',
-                        groups = filtered_df['zip_city'],
-                        aggregations = [dict(target = filtered_df['Customer'], func = 'count', enabled = True)]
-                                        )
-                                        ]
+                        )
                         )
                     ]
             }
@@ -124,14 +124,13 @@ def update_figure(selected_gender, start_date, end_date):
 @app.callback(
     dash.dependencies.Output('table', 'data'),
     [dash.dependencies.Input('gender-picker', 'values'),
-     dash.dependencies.Input('date-picker-range', 'start_date'),
-     dash.dependencies.Input('date-picker-range', 'end_date')])
+     dash.dependencies.Input('date-picker-range', 'join_start_date'),
+     dash.dependencies.Input('date-picker-range', 'join_end_date')])
 
 def update_table(selected_gender, start_date, end_date):    
-    filtered_df = demographics[demographics['Gender'].isin(selected_gender)]
-    filtered_df = filtered_df.loc[(demographics['JoinDate'] >= start_date) &
-                                   (demographics['JoinDate'] <= end_date),]
-    filtered_df["CustomerCount"] = filtered_df.groupby(["zip_city"], as_index=False)["Customer"].transform("count")
+    filtered_df = demographics.loc[(demographics['Gender'].isin(selected_gender)) &  
+                                  (demographics['JoinDate'] >= join_start_date) &
+                                  (demographics['JoinDate'] <= join_end_date), ]
     return filtered_df.to_dict("rows")
 
 if __name__ == '__main__':
